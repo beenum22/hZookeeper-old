@@ -22,28 +22,19 @@ class ZK(HydraBase):
 		self.config = ConfigParser()
 		self.options = options
 		HydraBase.__init__(self, test_name='ZKstress', options=self.options, app_dirs=['src', 'hydra'])
-
 		self.zk_pub_app_id = self.format_appname("/zk-pub")
-
 		self.zk_pub_task_ip = None
-
 		self.zk_pub_cmd_port = None
-
 		self.zkpa = None  # Pub Analyzer
-
 		self.add_appid(self.zk_pub_app_id)
-
+		
 	def run_test(self):
 		"""
 		Function which actually runs
 		"""
-        
 		self.start_init()
-
 		self.launch_zk_pub()
-
 		self.post_run(self.options)
-		
 		
 	def post_run(self,options):
 #		print self.zk_pub_app_id
@@ -51,7 +42,6 @@ class ZK(HydraBase):
 		self.options = options
 		task_list = self.all_task_ids[self.zk_pub_app_id]
 		print ("Communicating signals to zk_stress_client")
-
 #		print task_list
 		for task_id in task_list:
 #			print task_list	
