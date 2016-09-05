@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import json
 import time
 import sys
 import math
@@ -37,53 +38,85 @@ class ZK(HydraBase):
 		self.post_run(self.options)
 		
 	def post_run(self,options):
-#		print self.zk_pub_app_id
-#		print self.apps[self.zk_pub_app_id]
 		self.options = options
+		self.results = {}
 		task_list = self.all_task_ids[self.zk_pub_app_id]
 		print ("Communicating signals to zk_stress_client")
+<<<<<<< Updated upstream
 #		print task_list
+=======
+
+>>>>>>> Stashed changes
 		for task_id in task_list:
-#			print task_list	
 			info = self.apps[self.zk_pub_app_id]['ip_port_map'][task_id]
-#			print self.apps
-#			print info
 			port = info[0]
 			ip = info[1]
 			ha_list = []
 			self.zkpa = ZKPubAnalyser(ip, port, task_id)
 			print "Sending sengmsg signal to %s : %s" %(ip,port)
 			self.zkpa.do_req_resp('sendmsg', tout_60s)
-#			print time.clock()," : ", task_id
 			ha_list.append(self.zkpa)
-#
-#			print enumerate(ha_list)
-
+		
+		self.results['total_write']= []
+		self.results['95_write']= []
+		self.results['min_write']= []
+		self.results['max_write']= []
+		self.results['total_read']= []
+		self .results['90_write']= []
+		self .results['median_write']= []
+		self .results['mean_write']= []
+		self.results['write_rate']= []
 		for task_id in task_list:
-								
-#	        for idx, self.zkpa in enumerate(ha_list):
-#       	     		l.debug('Waiting for task [%s] in [%s:%s] test to END. Iteration: %s' % (self.zkpa.task_id, self.zkpa.server_ip, self.zkpa.port, idx))
-#				print self.zkpa.task_id, self.zkpa.server_ip, self.zkpa.port, idx
-#				self.zkpa.wait_for_testend()
-			print "Waiting for tests to end"
+#			print task_id
+			info = self.apps[self.zk_pub_app_id]['ip_port_map'][task_id]
+			port = info[0]
+			ip = info[1]
+			self.zkpa = ZKPubAnalyser(ip, port, task_id)
+			print "*****************"
+			print "Sending teststatus signal to %s : %s" %(ip,port)			
+			
 			while True:
 				(stat, r)=self.zkpa.do_req_resp('teststatus', tout_60s)
 				if r=='stopping':
 					break
 				time.sleep(1)
+			print "Done waiting"
 			print "Getting stats" 
 			(status, resp) = self.zkpa.do_req_resp('getstats', tout_60s)
-#			print resp,"*****:",time.clock()," : ",task_id
-#			"""
-			print "*******************"
-#			"""
-			print resp['stats']
-#			with open('test.txt', 'w') as f:
-#				for key, value in resp.items():
-#					f.write('%s:%s\n' % (key, value))					
-#			"""
-			print "*******************"
-#			"""
+#			print resp
+
+			for threads_id in resp.keys():
+				if threads_id != 'successfull_threads':
+
+					list=[str(i) for i in resp[threads_id].strip('{}').split(',')]
+					dict = {}
+#					print list
+					for d in list:
+						dict[d.split(":")[0].strip(" '")] = float(d.split(":")[1])
+#					print dict
+					self.results['total_write'].append(dict['total_write_latency/ms'])
+					self.results['total_read'].append(dict['total_read_latency/ms'])
+					self.results['min_write'].append(dict['min_write_latency/ms'])
+					self.results['max_write'].append(dict['max_write_latency/ms'])
+					self.results['95_write'].append(dict['95_write_percentile'])
+					self.results['write_rate'].append(dict['write_rate/ms'])
+					self.results['median_write'].append(dict['median_write'])
+					self.results['mean_write'].append(dict['mean_write'])
+					self.results['90_write'].append(dict['90_write_percentile'])
+
+
+			print "************"
+#			print obj
+		for x in self.results.keys():
+			print "***"
+			print "%s : %s" %(x, self.results[x])
+#		sys.stdout = open('test.txt', 'w')
+
+#			self.results['%s:%s'%(ip,port)] = resp
+#			print "Successful threads on %s:%s is %s" %(ip,port,self.results['%s:%s'%(ip,port)]['successfull_threads'])
+#			print "******************"
+#			print self.results['%s:%s'%(ip,port)]
+		print "******************"
 
 	def launch_zk_pub(self):
 		"""
@@ -94,15 +127,18 @@ class ZK(HydraBase):
 		if self.options.client_count > max_threads_per_client:
 #			threads_per_client = max_threads_per_client
 			client_count = math.ceil(self.options.client_count / float(max_threads_per_client))
-			print "Clients to launch : %s" %client_count
+			print "Clients to launch : %s" %int(client_count)
 			threads_per_client = int(math.ceil(self.options.client_count / client_count))
 			print "Threads per client : %s" %threads_per_client
 			
 			
 		else:
 			threads_per_client = self.options.client_count
-		self.create_binary_app(name=self.zk_pub_app_id, app_script='./src/zk_stress.py %s %s'
-									  % (self.options.msg_count , threads_per_client),
+		self.create_binary_app(name=self.zk_pub_app_id, app_script='./src/zk_stress.py %s %s %s %s'
+									  % (self.options.znode_creation_count,
+									  	 self.options.znode_data,
+									  	 self.options.znode_deletion_count,
+									  	 threads_per_client),
 	                               cpus=0.01, mem=50, ports=[0])
 		if self.options.client_count > max_threads_per_client:
 #			tt= self.options.client_count /float( max_threads_per_client )
@@ -111,18 +147,21 @@ class ZK(HydraBase):
 #			l.info("Number of Zookeeper-Stress Clients to launch = %s" % (client_count))
 			self.scale_and_verify_app(self.zk_pub_app_id, client_count)
 #			print client_count, self.options.client_count, max_threads_per_client
-			print "Done scalling !"
+			print "Done scaling !"
 #		time.sleep(20)
 class RunTest(object):
 	def __init__(self, argv):
-        	usage = ('python %prog --msg_count=<Total Operations>'
-                	 '--client_count=<Total clients to launch>')
+        	usage = ('python %prog --znode_creation_count=<Znodes count>'
+                	 '--client_count=<Total clients to launch>'
+                	 '--znode_data=<Desired data you want to store in a znode>'
+                	 '--znode_deletion_count=<Number of znodes to delete to trigger watches>')
 
         	parser = OptionParser(description='zookeeper scale test master',
         	                      version="0.1", usage=usage)
-		parser.add_option("--msg_count", dest='msg_count', type='int')
+		parser.add_option("--znode_creation_count", dest='znode_creation_count', type='int')
 		parser.add_option("--client_count", dest='client_count', type='int')
-#		parser.add_option("--threads", dest='threads', type='int')
+		parser.add_option("--znode_data", dest='znode_data', type='str')
+		parser.add_option("--znode_deletion_count", dest='znode_deletion_count', type='int')
 		(options, args) = parser.parse_args()
 		if ((len(args) != 0)):
 			parser.print_help()
@@ -131,6 +170,8 @@ class RunTest(object):
 
 
 		print options
+#		print time.time()
+#		print time.clock()
 #		num_msgs = int(argv[1])
 #		client_count = int(argv[2])
 #		zk_server_ip = argv[3] 
@@ -144,7 +185,7 @@ class RunTest(object):
 
 #	        print ("About to sleep for 15")
 #       time.sleep(15)
-#		r.delete_all_launched_apps()
+		r.delete_all_launched_apps()
 		r.stop_appserver()
 
 if __name__ == "__main__":
