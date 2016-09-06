@@ -49,24 +49,55 @@ class ZKPub(HDaemonRepSrv):
         l.info("send_msg has been called with argument %s" % self.znodes_cr)
 	self.run_data['test_status'] = 'running'
 	data=dict()
+
 	conn_time_start = time.time()*1000
 	zk = KazooClient(hosts='10.10.0.73:2181')	# Connection to the zookeeper server
 	zk.start()
 	conn_time_end = (time.time()*1000)-conn_time_start
 
-
 	req_time=[]		# initialize request times list
+	read_time = []
+	delete_time = []
+	znodes = []
+	totalread_end = 0
+	totalwrite_end= 0
+	totaldelete_end = 0
 	zk.ensure_path("/Hydra")	# Make sure the /Hydra path exists in zookeeper hierarchy 
-	
-	totalwrite_start=time.time()*1000	
+	# create znodes	and store data inside, calculate the times
+#	totalwrite_start=time.time()*1000	
         for i in range(int(self.znodes_cr)):
 		req_time_start=time.time()*1000
-		zk.create("/Hydra/h-", "", ephemeral=True, sequence=True)
+		t = zk.create("/Hydra/h-", self.znodes_data.encode('utf8'), ephemeral=True, sequence=True)
 		req_time_end=(time.time()*1000) - req_time_start
 		req_time.append(req_time_end)
-	totalwrite_end=(time.time()*1000)-totalwrite_start
+		znodes.append(t)
+		totalwrite_end = totalwrite_end + req_time_end
+#	totalwrite_end=(time.time()*1000)-totalwrite_start
+
+	#znodes reading
+	for x in znodes:
+		read_time_start=time.time()*1000
+		data, stat = zk.get(x)
+		read_time_end=(time.time()*1000) - read_time_start
+		totalread_end = totalread_end + read_time_end
+		read_time.append(read_time_end)
+		
+
 	self.run_data['stats']['thread-%s'%(j+1)] = {}
-	
+
+	#delete requested znodes
+	for y in range(int(self.znodes_del)):
+		delete_time_start=time.time()*1000
+		zk.delete(znodes[y])
+		delete_time_end=(time.time()*1000) - delete_time_start
+		delete_time.append(delete_time_end)
+		totaldelete_end = totaldelete_end + delete_time_end
+		if zk.exists(znodes[y]):
+			l.info("not deleted")
+		else:
+			l.info("successfully deleted %s" % znodes[y])
+
+
 	self.run_data['stats']['thread-%s'%(j+1)]['Connection_time'] = conn_time_end
 	self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'] = numpy.percentile(req_time, 95)
 	self.run_data['stats']['thread-%s'%(j+1)]['90_write_percentile'] = numpy.percentile(req_time, 90)
@@ -75,16 +106,25 @@ class ZKPub(HDaemonRepSrv):
 
 #	l.info (self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'])
 #	l.info (req_time)
+	
 	self.run_data['stats']['thread-%s'%(j+1)]['requested_znodes'] = int(self.znodes_cr)
+	self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
 	self.run_data['stats']['thread-%s'%(j+1)]['total_write_latency/ms'] = totalwrite_end
+	self.run_data['stats']['thread-%s'%(j+1)]['total_delete_latency/ms'] = totaldelete_end
 	self.run_data['stats']['thread-%s'%(j+1)]['min_write_latency/ms'] = min(req_time)
 	self.run_data['stats']['thread-%s'%(j+1)]['max_write_latency/ms'] = max(req_time)
+	self.run_data['stats']['thread-%s'%(j+1)]['min_read_latency/ms'] = min(read_time)
+	self.run_data['stats']['thread-%s'%(j+1)]['max_read_latency/ms'] = max(read_time)
+	self.run_data['stats']['thread-%s'%(j+1)]['min_delete_latency/ms'] = min(delete_time)
+	self.run_data['stats']['thread-%s'%(j+1)]['max_delete_latency/ms'] = max(delete_time)
 
 	self.run_data['stats']['thread-%s'%(j+1)]['write_rate/ms'] = int(self.znodes_cr)/totalwrite_end
-	totalread_start = time.time()*1000
-	children=zk.get_children("/Hydra/")
-	totalread_end = (time.time()*1000) - totalread_start
-	self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
+	self.run_data['stats']['thread-%s'%(j+1)]['read_rate/ms'] = int(self.znodes_cr)/totalread_end
+#	totalread_start = time.time()*1000
+#	children=zk.get_children("/Hydra/")
+#	l.info( "total znodes %s" %len(children))
+#	totalread_end = (time.time()*1000) - totalread_start
+#	self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
 #	self.run_data['stats']['znodes_cr'] = len(children)
 	zk.stop()
 	
@@ -143,6 +183,7 @@ def run(argv):
 		run_data['test_status']='stopping'
 		run_data['start']=False
 		l.info("Done with threads")
+		
 	else:
 		l.info("Still start signal not received, wait more")
 		pass

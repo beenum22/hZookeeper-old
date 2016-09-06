@@ -28,7 +28,7 @@ class ZK(HydraBase):
 		self.zk_pub_cmd_port = None
 		self.zkpa = None  # Pub Analyzer
 		self.add_appid(self.zk_pub_app_id)
-		
+
 	def run_test(self):
 		"""
 		Function which actually runs
@@ -37,16 +37,13 @@ class ZK(HydraBase):
 		self.launch_zk_pub()
 		self.post_run(self.options)
 		
+		
 	def post_run(self,options):
 		self.options = options
 		self.results = {}
 		task_list = self.all_task_ids[self.zk_pub_app_id]
 		print ("Communicating signals to zk_stress_client")
-<<<<<<< Updated upstream
-#		print task_list
-=======
 
->>>>>>> Stashed changes
 		for task_id in task_list:
 			info = self.apps[self.zk_pub_app_id]['ip_port_map'][task_id]
 			port = info[0]
@@ -83,7 +80,7 @@ class ZK(HydraBase):
 			print "Done waiting"
 			print "Getting stats" 
 			(status, resp) = self.zkpa.do_req_resp('getstats', tout_60s)
-#			print resp
+			print resp
 
 			for threads_id in resp.keys():
 				if threads_id != 'successfull_threads':
@@ -185,7 +182,7 @@ class RunTest(object):
 
 #	        print ("About to sleep for 15")
 #       time.sleep(15)
-		r.delete_all_launched_apps()
+#		r.delete_all_launched_apps()
 		r.stop_appserver()
 
 if __name__ == "__main__":
