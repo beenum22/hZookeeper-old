@@ -18,11 +18,11 @@ l = util.createlogger('HWPub', logging.INFO)
 
 
 class ZKPub(HDaemonRepSrv):
-	def __init__(self,port,run_data, znodes_cr, znodes_data, znodes_del, threads):
+	def __init__(self,port,run_data, znodes_cr, znodes_data, znodes_mod, threads):
 		self.run_data = run_data
 		self.znodes_cr = znodes_cr
 		self.znodes_data = znodes_data
-		self.znodes_del = znodes_del
+		self.znodes_mod = znodes_mod
 		self.threads = int(threads)
 		HDaemonRepSrv.__init__(self,port)
 		self.register_fn('sendmsg', self.test_start)
@@ -71,17 +71,6 @@ class ZKPub(HDaemonRepSrv):
 		:param arg1: Number of messages to send to the subscriber.
 		:return:
 		"""
-#        def trigger(event):
-#		watch_rec = time.time()*1000		
-#                zkt = KazooClient(hosts='10.10.0.73:2181')
-#                zkt.start()
-#		data,stat = zkt.get(event[2])
-#		l.info(data)
-#		l.info(stat)
-#		l.info("Triggerd and created node %s"%x)
-#                zkt.create(x, "", ephemeral=True, sequence=True)
-#		l.info("Watch triggered)
-#                zkt.stop()
 	
 		l.info("send_msg has been called with argument %s" % self.znodes_cr)
 		self.run_data['test_status'] = 'running'
@@ -94,12 +83,12 @@ class ZKPub(HDaemonRepSrv):
 
 		req_time=[]		# initialize request times list
 		read_time = []
-		delete_time = []
+		modify_time = []
 		znodes = []
 		del_znodes = []
 		totalread_end = 0
 		totalwrite_end= 0
-		totaldelete_end = 0
+		totalmodify_end = 0
 		zk.ensure_path("/Hydra")	# Make sure the /Hydra path exists in zookeeper hierarchy 
 
 	# create znodes	and store data inside, calculate the times
@@ -127,16 +116,16 @@ class ZKPub(HDaemonRepSrv):
 		zk.set(znodes[9], b"I have changed!")
 		l.info("data changed")		
 
-	#delete requested znodes
-		for y in range(int(self.znodes_del)):
-			delete_time_start=time.time()*1000
+	#modify requested znodes
+		for y in range(int(self.znodes_mod)):
+			modify_time_start=time.time()*1000
 			zk.delete(znodes[y])
-			delete_time_end=(time.time()*1000) - delete_time_start
-			l.info("successfully deleted %s" % znodes[y])
-			delete_time.append(delete_time_end)
-			totaldelete_end = totaldelete_end + delete_time_end
+			modify_time_end=(time.time()*1000) - modify_time_start
+			l.info("successfully modified %s" % znodes[y])
+			modify_time.append(modify_time_end)
+			totalmodify_end = totalmodify_end + modify_time_end
 			del_znodes.append(znodes[y])
-		l.info("Deleted znodes : %s"%del_znodes)
+		l.info("modified znodes : %s"%del_znodes)
 #	time.sleep(20)
 
 		self.run_data['stats']['thread-%s'%(j+1)] = {}
@@ -153,13 +142,13 @@ class ZKPub(HDaemonRepSrv):
 		self.run_data['stats']['thread-%s'%(j+1)]['requested_znodes'] = int(self.znodes_cr)
 		self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
 		self.run_data['stats']['thread-%s'%(j+1)]['total_write_latency/ms'] = totalwrite_end
-		self.run_data['stats']['thread-%s'%(j+1)]['total_delete_latency/ms'] = totaldelete_end
+		self.run_data['stats']['thread-%s'%(j+1)]['total_modify_latency/ms'] = totalmodify_end
 		self.run_data['stats']['thread-%s'%(j+1)]['min_write_latency/ms'] = min(req_time)
 		self.run_data['stats']['thread-%s'%(j+1)]['max_write_latency/ms'] = max(req_time)
 		self.run_data['stats']['thread-%s'%(j+1)]['min_read_latency/ms'] = min(read_time)
 		self.run_data['stats']['thread-%s'%(j+1)]['max_read_latency/ms'] = max(read_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['min_delete_latency/ms'] = min(delete_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['max_delete_latency/ms'] = max(delete_time)
+		self.run_data['stats']['thread-%s'%(j+1)]['min_modify_latency/ms'] = min(modify_time)
+		self.run_data['stats']['thread-%s'%(j+1)]['max_modify_latency/ms'] = max(modify_time)
 
 		self.run_data['stats']['thread-%s'%(j+1)]['write_rate/ms'] = int(self.znodes_cr)/totalwrite_end
 		self.run_data['stats']['thread-%s'%(j+1)]['read_rate/ms'] = int(self.znodes_cr)/totalread_end
@@ -191,7 +180,7 @@ def run(argv):
 #    l.info("KAZOOOOOOO")
 	znodes_cr=argv[1]
 	znodes_data=argv[2]
-	znodes_del=argv[3]
+	znodes_mod=argv[3]
 	threads=argv[4]
     
 #    l.info(threads)
@@ -209,7 +198,7 @@ def run(argv):
 #			  'min_write_latency':znodes_cr}},
 		    'test_status': 'stopped'}
 	print ("Starting ZKstress  at port [%s]", pub_rep_port)
-	hd = ZKPub(pub_rep_port, run_data, znodes_cr, znodes_data, znodes_del, threads)
+	hd = ZKPub(pub_rep_port, run_data, znodes_cr, znodes_data, znodes_mod, threads)
 	hd.run()
 
 	while True:
