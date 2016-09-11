@@ -39,6 +39,31 @@ class ZKPub(HDaemonRepSrv):
     def get_stats(self):
         return ('ok', self.run_data['stats'])
 
+    def trigger(self, event):
+#	l.info(event[2], type(event[2])
+	watch_rec = time.time()*1000
+
+	if event[0] == 'CHANGED':		
+		l.info("Watched Triggered due to data change in %s"%event[2])
+		zkt = KazooClient(hosts='10.10.0.73:2181')
+		zkt.start()
+		if zkt.exists(str(event[2])):
+			l.info("EXISTS")
+		else:
+			l.info("DOESN'T EXIST")
+		data, stat =  zkt.get(event[2])
+		l.info(data)
+#		l.info(watch_rec)
+		l.info(stat[3])
+		t1 = watch_rec - float(stat[3])
+#		t1 = 1473352571553 - 1473352571550
+#		t1= time.time()*1000 - watch_rec
+		l.info(t1)
+		zkt.stop()	
+#	l.info("Get stats")
+	else:
+		l.info("Watch triggered just beacause of node deletion")		
+
     def send_msg(self,j):
         """
         Function to handle the 'sendmsg' signal by test.
@@ -46,6 +71,18 @@ class ZKPub(HDaemonRepSrv):
         :param arg1: Number of messages to send to the subscriber.
         :return:
         """
+#        def trigger(event):
+#		watch_rec = time.time()*1000		
+#                zkt = KazooClient(hosts='10.10.0.73:2181')
+#                zkt.start()
+#		data,stat = zkt.get(event[2])
+#		l.info(data)
+#		l.info(stat)
+#		l.info("Triggerd and created node %s"%x)
+#                zkt.create(x, "", ephemeral=True, sequence=True)
+#		l.info("Watch triggered)
+#                zkt.stop()
+
         l.info("send_msg has been called with argument %s" % self.znodes_cr)
 	self.run_data['test_status'] = 'running'
 	data=dict()
@@ -59,10 +96,12 @@ class ZKPub(HDaemonRepSrv):
 	read_time = []
 	delete_time = []
 	znodes = []
+	del_znodes = []
 	totalread_end = 0
 	totalwrite_end= 0
 	totaldelete_end = 0
 	zk.ensure_path("/Hydra")	# Make sure the /Hydra path exists in zookeeper hierarchy 
+
 	# create znodes	and store data inside, calculate the times
 #	totalwrite_start=time.time()*1000	
         for i in range(int(self.znodes_cr)):
@@ -71,32 +110,36 @@ class ZKPub(HDaemonRepSrv):
 		req_time_end=(time.time()*1000) - req_time_start
 		req_time.append(req_time_end)
 		znodes.append(t)
+	
 		totalwrite_end = totalwrite_end + req_time_end
-#	totalwrite_end=(time.time()*1000)-totalwrite_start
+	l.info(znodes)
 
 	#znodes reading
 	for x in znodes:
 		read_time_start=time.time()*1000
-		data, stat = zk.get(x)
+		data, stat = zk.get(x, watch=self.trigger)
+#		l.info("data= %s : stat= %s"%(data,stat))
 		read_time_end=(time.time()*1000) - read_time_start
 		totalread_end = totalread_end + read_time_end
 		read_time.append(read_time_end)
-		
-
-	self.run_data['stats']['thread-%s'%(j+1)] = {}
+	l.info(znodes[9])	
+	l.info(type(znodes[9]))
+	zk.set(znodes[9], b"I have changed!")
+	l.info("data changed")		
 
 	#delete requested znodes
 	for y in range(int(self.znodes_del)):
 		delete_time_start=time.time()*1000
 		zk.delete(znodes[y])
 		delete_time_end=(time.time()*1000) - delete_time_start
+		l.info("successfully deleted %s" % znodes[y])
 		delete_time.append(delete_time_end)
 		totaldelete_end = totaldelete_end + delete_time_end
-		if zk.exists(znodes[y]):
-			l.info("not deleted")
-		else:
-			l.info("successfully deleted %s" % znodes[y])
+		del_znodes.append(znodes[y])
+	l.info("Deleted znodes : %s"%del_znodes)
+#	time.sleep(20)
 
+	self.run_data['stats']['thread-%s'%(j+1)] = {}
 
 	self.run_data['stats']['thread-%s'%(j+1)]['Connection_time'] = conn_time_end
 	self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'] = numpy.percentile(req_time, 95)
@@ -120,13 +163,15 @@ class ZKPub(HDaemonRepSrv):
 
 	self.run_data['stats']['thread-%s'%(j+1)]['write_rate/ms'] = int(self.znodes_cr)/totalwrite_end
 	self.run_data['stats']['thread-%s'%(j+1)]['read_rate/ms'] = int(self.znodes_cr)/totalread_end
+	time.sleep(5)
+	zk.stop()
+
 #	totalread_start = time.time()*1000
 #	children=zk.get_children("/Hydra/")
 #	l.info( "total znodes %s" %len(children))
 #	totalread_end = (time.time()*1000) - totalread_start
 #	self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
 #	self.run_data['stats']['znodes_cr'] = len(children)
-	zk.stop()
 	
 #	self.run_data['threads_info']='done'
 #	self.run_data['test_status']='stopping'
@@ -149,7 +194,7 @@ def run(argv):
     znodes_del=argv[3]
     threads=argv[4]
     
-    l.info(threads)
+#    l.info(threads)
     list_threads=[]
     pub_rep_port = os.environ.get('PORT0')
 
