@@ -131,10 +131,11 @@ class ZK(HydraBase):
 			
 		else:
 			threads_per_client = self.options.client_count
-		self.create_binary_app(name=self.zk_pub_app_id, app_script='./src/zk_stress.py %s %s %s %s'
+		self.create_binary_app(name=self.zk_pub_app_id, app_script='./src/zk_stress.py %s %s %s %s %s'
 									  % (self.options.znode_creation_count,
 									  	 self.options.znode_data,
 									  	 self.options.znode_modification_count,
+									  	 self.options.stress_reader,
 									  	 threads_per_client),
 	                               cpus=0.01, mem=50, ports=[0])
 		if self.options.client_count > max_threads_per_client:
@@ -151,7 +152,8 @@ class RunTest(object):
         	usage = ('python %prog --znode_creation_count=<Znodes count>'
                 	 '--client_count=<Total clients to launch>'
                 	 '--znode_data=<Desired data you want to store in a znode>'
-                	 '--znode_modification_count=<Number of znodes to modify to trigger watches>')
+                	 '--znode_modification_count=<Number of znodes to modify to trigger watches>'
+					 '--stress_reader=<yes or no here>')
 
         	parser = OptionParser(description='zookeeper scale test master',
         	                      version="0.1", usage=usage)
@@ -159,6 +161,7 @@ class RunTest(object):
 		parser.add_option("--client_count", dest='client_count', type='int')
 		parser.add_option("--znode_data", dest='znode_data', type='str')
 		parser.add_option("--znode_modification_count", dest='znode_modification_count', type='int')
+		parser.add_option("--stress_reader", dest='stress_reader', type='str')
 		(options, args) = parser.parse_args()
 		if ((len(args) != 0)):
 			parser.print_help()

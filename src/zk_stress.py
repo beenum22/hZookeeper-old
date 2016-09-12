@@ -38,29 +38,42 @@ class ZKPub(HDaemonRepSrv):
 
 	def get_stats(self):
         	return ('ok', self.run_data['stats'])
+        	
+	def reader(self):
+		zkr = KazooClient(hosts='10.10.0.73:2181')
+		zkr.start()
+		l.info("Side stress reader running")
+		while True: 
+			time.sleep(1)
+			child = zkr.get_children("/Hydra")
+			child_len = len(child)
+			if child_len != 0:
+				for r in child:
+					data, stat = zk.get(r)
+			else:
+				l.info("No znode created yet")
+		zkr.stop()					
+
+		        	
 
 	def trigger(self, event):
 #	l.info(event[2], type(event[2])
 		watch_rec = time.time()*1000
-
+#		l.info(event)
 		if event[0] == 'CHANGED':		
 			l.info("Watched Triggered due to data change in %s"%event[2])
 			zkt = KazooClient(hosts='10.10.0.73:2181')
 			zkt.start()
-			if zkt.exists(str(event[2])):
-				l.info("EXISTS")
-			else:
-				l.info("DOESN'T EXIST")
 			data, stat =  zkt.get(event[2])
 			l.info(data)
-#			l.info(watch_rec)
+			l.info(stat)
 			l.info(stat[3])
+			l.info(int(watch_rec))
+			
 			t1 = watch_rec - float(stat[3])
-#			t1 = 1473352571553 - 1473352571550
-#			t1= time.time()*1000 - watch_rec
 			l.info(t1)
 			zkt.stop()	
-#		l.info("Get stats")
+			self.run_data['watches']+=1
 		else:
 			l.info("Watch triggered just beacause of node deletion")		
 
@@ -85,7 +98,7 @@ class ZKPub(HDaemonRepSrv):
 		read_time = []
 		modify_time = []
 		znodes = []
-		del_znodes = []
+		mod_znodes = []
 		totalread_end = 0
 		totalwrite_end= 0
 		totalmodify_end = 0
@@ -111,21 +124,21 @@ class ZKPub(HDaemonRepSrv):
 			read_time_end=(time.time()*1000) - read_time_start
 			totalread_end = totalread_end + read_time_end
 			read_time.append(read_time_end)
-		l.info(znodes[9])	
-		l.info(type(znodes[9]))
-		zk.set(znodes[9], b"I have changed!")
-		l.info("data changed")		
+#		l.info(znodes[9])	
+#		l.info(type(znodes[9]))
+#		zk.set(znodes[9], b"I have changed!")
+#		l.info("data changed")		
 
 	#modify requested znodes
 		for y in range(int(self.znodes_mod)):
 			modify_time_start=time.time()*1000
-			zk.delete(znodes[y])
+			zk.set(znodes[y], b"I have changed!")
 			modify_time_end=(time.time()*1000) - modify_time_start
 			l.info("successfully modified %s" % znodes[y])
 			modify_time.append(modify_time_end)
 			totalmodify_end = totalmodify_end + modify_time_end
-			del_znodes.append(znodes[y])
-		l.info("modified znodes : %s"%del_znodes)
+			mod_znodes.append(znodes[y])
+		l.info("modified znodes : %s"%mod_znodes)
 #	time.sleep(20)
 
 		self.run_data['stats']['thread-%s'%(j+1)] = {}
@@ -155,15 +168,6 @@ class ZKPub(HDaemonRepSrv):
 		time.sleep(5)
 		zk.stop()
 
-#	totalread_start = time.time()*1000
-#	children=zk.get_children("/Hydra/")
-#	l.info( "total znodes %s" %len(children))
-#	totalread_end = (time.time()*1000) - totalread_start
-#	self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
-#	self.run_data['stats']['znodes_cr'] = len(children)
-	
-#	self.run_data['threads_info']='done'
-#	self.run_data['test_status']='stopping'
 		return 'ok', None
 	
 
@@ -181,7 +185,8 @@ def run(argv):
 	znodes_cr=argv[1]
 	znodes_data=argv[2]
 	znodes_mod=argv[3]
-	threads=argv[4]
+	stress_reader=argv[4]
+	threads=argv[5]
     
 #    l.info(threads)
 	list_threads=[]
@@ -189,13 +194,7 @@ def run(argv):
 
 	run_data = {'start': False,
 		    'stats': {},
-#		'stats': {'thread_number':{},
-#			  'ip-port':{},
-#			  'total_write':{},
-#			  'total_read':{},
-#			  'requested_znodes':{},
-#			  'max_write_latency':{},
-#			  'min_write_latency':znodes_cr}},
+		    'watches': 0,
 		    'test_status': 'stopped'}
 	print ("Starting ZKstress  at port [%s]", pub_rep_port)
 	hd = ZKPub(pub_rep_port, run_data, znodes_cr, znodes_data, znodes_mod, threads)
@@ -205,6 +204,13 @@ def run(argv):
 		time.sleep(3)
 		if  hd.run_data['start']==True:
 			l.info ("Start signal received, Let's rock n roll")
+			if stress_reader == 'yes':
+				l.info("Starting stress reader thread")
+				r=Thread(target=hd.reader)
+				r.start()
+			else:
+				l.info("No stress reader thread activated")
+
 			for j in range(int(threads)):
 				l.info ("starting thread-%i"%(j+1))
 				t=Thread( target=hd.send_msg, args=(j,))
@@ -213,14 +219,21 @@ def run(argv):
 			for x in list_threads:
 				x.join()
 #		print "Threads number is %s"% len(run_data['stats'].keys())
+			
 			run_data['stats']['successfull_threads'] = str(len(run_data['stats'].keys()))
+			l.info(type(znodes_mod))
+			while run_data['watches']<int(znodes_mod):
+				l.info(run_data['watches'])
+				l.info("Not done with watches yet")
+			l.info("done with watches check")				
 			run_data['test_status']='stopping'
 			run_data['start']=False
 			l.info("Done with threads")
-		
-		else:
+		elif run_data['test_status']=='stopped':
 			l.info("Still start signal not received, wait more")
-			pass
+		else:
+			break
+			
 			
 if __name__ == "__main__":
 	run(sys.argv)
