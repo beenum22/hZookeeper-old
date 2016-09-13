@@ -63,6 +63,7 @@ class ZK(HydraBase):
 		self .results['median_write']= []
 		self .results['mean_write']= []
 		self.results['write_rate']= []
+		self.results['watch_latencies']=[]
 		for task_id in task_list:
 #			print task_id
 			info = self.apps[self.zk_pub_app_id]['ip_port_map'][task_id]
@@ -83,7 +84,7 @@ class ZK(HydraBase):
 			print resp
 
 			for threads_id in resp.keys():
-				if threads_id != 'successfull_threads':
+				if threads_id != 'successfull_threads' and threads_id != 'watches':
 
 					list=[str(i) for i in resp[threads_id].strip('{}').split(',')]
 					dict = {}
@@ -100,7 +101,8 @@ class ZK(HydraBase):
 					self.results['median_write'].append(dict['median_write'])
 					self.results['mean_write'].append(dict['mean_write'])
 					self.results['90_write'].append(dict['90_write_percentile'])
-
+			
+			self.results['watch_latencies'].append(resp['watches'])
 
 			print "************"
 #			print obj

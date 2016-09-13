@@ -28,7 +28,7 @@ class ZKPub(HDaemonRepSrv):
 		self.register_fn('sendmsg', self.test_start)
 		self.register_fn('getstats', self.get_stats)
 		self.register_fn('teststatus', self.test_status)
-
+		self.run_data['stats']['watches'] = []
 	def test_start(self):
 		self.run_data['start']=True
 		return 'ok', None
@@ -70,10 +70,14 @@ class ZKPub(HDaemonRepSrv):
 			l.info(stat[3])
 			l.info(int(watch_rec))
 			
-			t1 = watch_rec - float(stat[3])
-			l.info(t1)
+			watch_time = watch_rec - float(stat[3])
+			l.info(watch_time)
 			zkt.stop()	
+			l.info(self.run_data['watches'])
 			self.run_data['watches']+=1
+			l.info(self.run_data['watches'])
+#			self.run_data['stats']['watch_latency-%s'%(self.run_data['watches'])] = watch_time
+			self.run_data['stats']['watches'].append(watch_time)
 		else:
 			l.info("Watch triggered just beacause of node deletion")		
 
@@ -144,15 +148,27 @@ class ZKPub(HDaemonRepSrv):
 		self.run_data['stats']['thread-%s'%(j+1)] = {}
 
 		self.run_data['stats']['thread-%s'%(j+1)]['Connection_time'] = conn_time_end
+
+		self.run_data['stats']['thread-%s'%(j+1)]['requested_znodes'] = int(self.znodes_cr)
+
 		self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'] = numpy.percentile(req_time, 95)
 		self.run_data['stats']['thread-%s'%(j+1)]['90_write_percentile'] = numpy.percentile(req_time, 90)
+		self.run_data['stats']['thread-%s'%(j+1)]['95_read_percentile'] = numpy.percentile(read_time, 95)
+		self.run_data['stats']['thread-%s'%(j+1)]['90_read_percentile'] = numpy.percentile(read_time, 90)
+		self.run_data['stats']['thread-%s'%(j+1)]['95_modify_percentile'] = numpy.percentile(modify_time, 95)
+		self.run_data['stats']['thread-%s'%(j+1)]['90_modify_percentile'] = numpy.percentile(modify_time, 90)
+
 		self.run_data['stats']['thread-%s'%(j+1)]['median_write'] = numpy.median(req_time)
+		self.run_data['stats']['thread-%s'%(j+1)]['median_read'] = numpy.median(read_time)
+		self.run_data['stats']['thread-%s'%(j+1)]['median_modify'] = numpy.median(modify_time)
+
 		self.run_data['stats']['thread-%s'%(j+1)]['mean_write'] = numpy.mean(req_time)
+		self.run_data['stats']['thread-%s'%(j+1)]['mean_read'] = numpy.mean(read_time)
+		self.run_data['stats']['thread-%s'%(j+1)]['mean_modify'] = numpy.mean(modify_time)
 
 #	l.info (self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'])
 #	l.info (req_time)
 	
-		self.run_data['stats']['thread-%s'%(j+1)]['requested_znodes'] = int(self.znodes_cr)
 		self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
 		self.run_data['stats']['thread-%s'%(j+1)]['total_write_latency/ms'] = totalwrite_end
 		self.run_data['stats']['thread-%s'%(j+1)]['total_modify_latency/ms'] = totalmodify_end
@@ -224,6 +240,7 @@ def run(argv):
 			l.info(type(znodes_mod))
 			while run_data['watches']<int(znodes_mod):
 				l.info(run_data['watches'])
+				time.sleep(1)
 				l.info("Not done with watches yet")
 			l.info("done with watches check")				
 			run_data['test_status']='stopping'
