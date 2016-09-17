@@ -66,16 +66,7 @@ class ZK(HydraBase):
 			self.zkpa.do_req_resp('sendmsg', tout_60s)
 			ha_list.append(self.zkpa)
 
-#		self.results['total_write']= []
-#		self.results['95_write']= []
-#		self.results['min_write']= []
-#		self.results['max_write']= []
-#		self.results['total_read']= []
-#		self.results['90_write']= []
-#		self.results['median_write']= []
-#		self.results['mean_write']= []
-#		self.results['write_rate']= []
-#		self.results['watch_latencies']=[]
+		id = 0
 		for task_id in task_list:
 #			print task_id
 			info = self.apps[self.zk_pub_app_id]['ip_port_map'][task_id]
@@ -95,7 +86,6 @@ class ZK(HydraBase):
 			(status, resp) = self.zkpa.do_req_resp('getstats', tout_60s)
 			print resp
 	
-
 			for threads_id in resp.keys():
 				if threads_id == 'watches':
 					dict = {threads_id:{}}
@@ -105,43 +95,35 @@ class ZK(HydraBase):
 					print "********"
 					print "YOOOOO----%s"%dict
 
+
 				else:
 					print "************"
-					dict={'thread-%s'%threads_id[-1]:{threads_id[:-1]: {}}}
+					dict={'thread-%s'%str(int(threads_id[-1])+id):{threads_id[:-1]: {}}}
 					list=resp[threads_id].strip('[]').split(',')
 					print list			
 					for d in list:
 
 #						list[list.index(d)] = d.strip().strip('{}')	
 						
-						dict['thread-%s'%threads_id[-1]][threads_id[:-1]][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
+						dict['thread-%s'%str(int(threads_id[-1])+id)][threads_id[:-1]][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
 					print dict
-					
 				
 					json_body = [{"measurement" : "hZookeeper_stats", "tags":{}, "time":'', "fields" : {}}]
-					json_body[0]["tags"]['client'] = 'thread-%s'%threads_id[-1]
+					json_body[0]["tags"]['client'] = 'thread-%s'%str(int(threads_id[-1])+id)
 
-					for t in dict['thread-%s'%threads_id[-1]].keys():
+					for t in dict['thread-%s'%str(int(threads_id[-1])+id)].keys():
 						
-						for k in dict['thread-%s'%threads_id[-1]][threads_id[:-1]].keys():
+						for k in dict['thread-%s'%str(int(threads_id[-1])+id)][threads_id[:-1]].keys():
 #							print int(k)
 							print k
 							time_db = datetime.datetime.fromtimestamp(float(k)/1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
 #							print time_db
 							json_body[0]["time"] = time_db
-							json_body[0]["fields"][t] = float(dict['thread-%s'%threads_id[-1]][threads_id[:-1]][k])
+							json_body[0]["fields"][t] = float(dict['thread-%s'%str(int(threads_id[-1])+id)][threads_id[:-1]][k])
 							print json_body			
 							self.influxdb(json_body)
-
-
+			id += self.options.threads_client
 		
-#########
-#		sys.stdout = open('test.txt', 'w')
-
-#			self.results['%s:%s'%(ip,port)] = resp
-#			print "Successful threads on %s:%s is %s" %(ip,port,self.results['%s:%s'%(ip,port)]['successfull_threads'])
-#			print "******************"
-#			print self.results['%s:%s'%(ip,port)]
 		print "******************"
 
 	def influxdb(self, json_body):
@@ -156,31 +138,34 @@ class ZK(HydraBase):
 		print type(json_body)
 		client.write_points(json_body)
 		print "done writing data"
-		client.drop_database('hZookeeper')		
+#		client.drop_database('hZookeeper')		
 		
 	def launch_zk_pub(self):
 #		"""
 #		Function to launch zookeeper stress app.
 #		"""
 		print ("Launching the Zookeeper stress app")
-		max_threads_per_client = 9
+		max_threads_per_client = 5
 		if self.options.client_count > max_threads_per_client:
 #			threads_per_client = max_threads_per_client
 			client_count = math.ceil(self.options.client_count / float(max_threads_per_client))
 			print "Clients to launch : %s" %int(client_count)
 			threads_per_client = int(math.ceil(self.options.client_count / client_count))
+			self.options.threads_client = threads_per_client
 			print "Threads per client : %s" %threads_per_client
 			
 			
 		else:
 			threads_per_client = self.options.client_count
+			self.options.threads_client = threads_per_client
+
 		self.create_binary_app(name=self.zk_pub_app_id, app_script='./src/zk_stress.py %s %s %s %s %s'
 									  % (self.options.znode_creation_count,
 									  	 self.options.znode_data,
 									  	 self.options.znode_modification_count,
 									  	 self.options.stress_reader,
 									  	 threads_per_client),
-	                               cpus=0.01, mem=50, ports=[0])
+	                               cpus=0.1, mem=128, ports=[0])
 		if self.options.client_count > max_threads_per_client:
 #			tt= self.options.client_count /float( max_threads_per_client )
 #			print tt
@@ -228,7 +213,7 @@ class RunTest(object):
 
 #	        print ("About to sleep for 15")
 #       time.sleep(15)
-		r.delete_all_launched_apps()
+#		r.delete_all_launched_apps()
 		r.stop_appserver()
 
 if __name__ == "__main__":

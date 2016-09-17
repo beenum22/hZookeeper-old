@@ -141,21 +141,21 @@ class ZKPub(HDaemonRepSrv):
 			dict_read={'read':{}, 'total':{}}
 			dict_read['read'][read_time_end] = read_time_diff
 			read_time.append(dict_read['read'])
-		dict_read['total'][time.time()] = totalread_end
+		dict_read['total'][time.time()*1000] = totalread_end
 
 	#modify requested znodes
 		for y in range(int(self.znodes_mod)):
 			modify_time_start=time.time()*1000
 			zk.set(znodes[y], b"I have changed!")
-			modify_time_end=(time.time()*1000)
+			modify_time_end=time.time()*1000
 			modify_time_diff = modify_time_end - modify_time_start
 			l.info("successfully modified %s" % znodes[y])
 			dict_mod={'modify':{}, 'total':{}}
 			dict_mod['modify'][modify_time_end] = modify_time_diff 
 			modify_time.append(dict_mod['modify'])
-			totalmodify_end = totalmodify_end + modify_time_end
+			totalmodify_end = totalmodify_end + modify_time_diff
 			mod_znodes.append(znodes[y])
-		dict_mod['total'][time.time()] = totalmodify_end
+		dict_mod['total'][time.time()*1000] = totalmodify_end
 		l.info("modified znodes : %s"%mod_znodes)
 #	time.sleep(20)
 
@@ -166,7 +166,7 @@ class ZKPub(HDaemonRepSrv):
 		self.run_data['stats']['total_write%s'%(j+1)] = dict_write['total']
 
 		self.run_data['stats']['read_times%s'%(j+1)] = read_time
-		self.run_data['stats']['total_modify%s'%(j+1)] = dict_read['total']
+		self.run_data['stats']['total_read%s'%(j+1)] = dict_read['total']
 
 		self.run_data['stats']['modify_times%s'%(j+1)] = modify_time
 		self.run_data['stats']['total_modify%s'%(j+1)] = dict_mod['total']
