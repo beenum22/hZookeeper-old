@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+from ast import literal_eval
+import re
 import json
+from influxdb import InfluxDBClient
+import datetime
 import time
 import sys
 import math
@@ -36,11 +40,19 @@ class ZK(HydraBase):
 		self.start_init()
 		self.launch_zk_pub()
 		self.post_run(self.options)
-		
+#		self.influxdb()
 		
 	def post_run(self,options):
 		self.options = options
-		self.results = {}
+		self.results = [
+			{
+				"measurement":"hZookeeper_stats",
+				"tags": {},
+				"time": "",
+				"fields":{}
+			}
+		]
+					
 		task_list = self.all_task_ids[self.zk_pub_app_id]
 		print ("Communicating signals to zk_stress_client")
 
@@ -53,17 +65,17 @@ class ZK(HydraBase):
 			print "Sending sengmsg signal to %s : %s" %(ip,port)
 			self.zkpa.do_req_resp('sendmsg', tout_60s)
 			ha_list.append(self.zkpa)
-		
-		self.results['total_write']= []
-		self.results['95_write']= []
-		self.results['min_write']= []
-		self.results['max_write']= []
-		self.results['total_read']= []
-		self .results['90_write']= []
-		self .results['median_write']= []
-		self .results['mean_write']= []
-		self.results['write_rate']= []
-		self.results['watch_latencies']=[]
+
+#		self.results['total_write']= []
+#		self.results['95_write']= []
+#		self.results['min_write']= []
+#		self.results['max_write']= []
+#		self.results['total_read']= []
+#		self.results['90_write']= []
+#		self.results['median_write']= []
+#		self.results['mean_write']= []
+#		self.results['write_rate']= []
+#		self.results['watch_latencies']=[]
 		for task_id in task_list:
 #			print task_id
 			info = self.apps[self.zk_pub_app_id]['ip_port_map'][task_id]
@@ -82,33 +94,48 @@ class ZK(HydraBase):
 			print "Getting stats" 
 			(status, resp) = self.zkpa.do_req_resp('getstats', tout_60s)
 			print resp
+	
 
 			for threads_id in resp.keys():
-				if threads_id != 'successfull_threads' and threads_id != 'watches':
-
-					list=[str(i) for i in resp[threads_id].strip('{}').split(',')]
-					dict = {}
-#					print list
+				if threads_id == 'watches':
+					dict = {threads_id:{}}
+					list=resp[threads_id].strip('[]').split(',')
 					for d in list:
-						dict[d.split(":")[0].strip(" '")] = float(d.split(":")[1])
-#					print dict
-					self.results['total_write'].append(dict['total_write_latency/ms'])
-					self.results['total_read'].append(dict['total_read_latency/ms'])
-					self.results['min_write'].append(dict['min_write_latency/ms'])
-					self.results['max_write'].append(dict['max_write_latency/ms'])
-					self.results['95_write'].append(dict['95_write_percentile'])
-					self.results['write_rate'].append(dict['write_rate/ms'])
-					self.results['median_write'].append(dict['median_write'])
-					self.results['mean_write'].append(dict['mean_write'])
-					self.results['90_write'].append(dict['90_write_percentile'])
-			
-			self.results['watch_latencies'].append(resp['watches'])
+						dict[threads_id][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
+					print "********"
+					print "YOOOOO----%s"%dict
 
-			print "************"
-#			print obj
-		for x in self.results.keys():
-			print "***"
-			print "%s : %s" %(x, self.results[x])
+				else:
+					print "************"
+					dict={'thread-%s'%threads_id[-1]:{threads_id[:-1]: {}}}
+					list=resp[threads_id].strip('[]').split(',')
+					print list			
+					for d in list:
+
+#						list[list.index(d)] = d.strip().strip('{}')	
+						
+						dict['thread-%s'%threads_id[-1]][threads_id[:-1]][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
+					print dict
+					
+				
+					json_body = [{"measurement" : "hZookeeper_stats", "tags":{}, "time":'', "fields" : {}}]
+					json_body[0]["tags"]['client'] = 'thread-%s'%threads_id[-1]
+
+					for t in dict['thread-%s'%threads_id[-1]].keys():
+						
+						for k in dict['thread-%s'%threads_id[-1]][threads_id[:-1]].keys():
+#							print int(k)
+							print k
+							time_db = datetime.datetime.fromtimestamp(float(k)/1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
+#							print time_db
+							json_body[0]["time"] = time_db
+							json_body[0]["fields"][t] = float(dict['thread-%s'%threads_id[-1]][threads_id[:-1]][k])
+							print json_body			
+							self.influxdb(json_body)
+
+
+		
+#########
 #		sys.stdout = open('test.txt', 'w')
 
 #			self.results['%s:%s'%(ip,port)] = resp
@@ -117,10 +144,24 @@ class ZK(HydraBase):
 #			print self.results['%s:%s'%(ip,port)]
 		print "******************"
 
+	def influxdb(self, json_body):
+		client = InfluxDBClient(host='10.10.0.73', port=8086, username='root', password='root', database='hZookeeper')
+		dbs = client.get_list_database()
+		print dbs
+		try:
+			t=dbs[1]
+		except:
+			print "NO DB"
+			client.create_database('hZookeeper')
+		print type(json_body)
+		client.write_points(json_body)
+		print "done writing data"
+		client.drop_database('hZookeeper')		
+		
 	def launch_zk_pub(self):
-		"""
-		Function to launch zookeeper stress app.
-		"""
+#		"""
+#		Function to launch zookeeper stress app.
+#		"""
 		print ("Launching the Zookeeper stress app")
 		max_threads_per_client = 9
 		if self.options.client_count > max_threads_per_client:
@@ -187,7 +228,7 @@ class RunTest(object):
 
 #	        print ("About to sleep for 15")
 #       time.sleep(15)
-#		r.delete_all_launched_apps()
+		r.delete_all_launched_apps()
 		r.stop_appserver()
 
 if __name__ == "__main__":

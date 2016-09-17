@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import json
 import numpy
 import zmq
 import os
@@ -37,8 +38,9 @@ class ZKPub(HDaemonRepSrv):
 		return ('ok', self.run_data['test_status'])
 
 	def get_stats(self):
-        	return ('ok', self.run_data['stats'])
-        	
+#		stats = json.dumps(self.run_data['stats'])
+#		return ('ok', self.run_data['stats']['thread-1'])
+		return ('ok', self.run_data['stats'])        	
 	def reader(self):
 		zkr = KazooClient(hosts='10.10.0.73:2181')
 		zkr.start()
@@ -76,8 +78,9 @@ class ZKPub(HDaemonRepSrv):
 			l.info(self.run_data['watches'])
 			self.run_data['watches']+=1
 			l.info(self.run_data['watches'])
-#			self.run_data['stats']['watch_latency-%s'%(self.run_data['watches'])] = watch_time
-			self.run_data['stats']['watches'].append(watch_time)
+			dict_watch={}
+			dict_watch[watch_rec] = watch_time
+			self.run_data['stats']['watches'].append(dict_watch)
 		else:
 			l.info("Watch triggered just beacause of node deletion")		
 
@@ -91,14 +94,16 @@ class ZKPub(HDaemonRepSrv):
 	
 		l.info("send_msg has been called with argument %s" % self.znodes_cr)
 		self.run_data['test_status'] = 'running'
-		data=dict()
+#		data=dict()
 
 		conn_time_start = time.time()*1000
 		zk = KazooClient(hosts='10.10.0.73:2181')	# Connection to the zookeeper server
 		zk.start()
-		conn_time_end = (time.time()*1000)-conn_time_start
-
-		req_time=[]		# initialize request times list
+		conn_time_end = time.time()*1000
+		conn_time_diff = conn_time_end - conn_time_start
+		dict_conn = {}
+		dict_conn[conn_time_end] = conn_time_diff
+		write_time=[]		# initialize request times list
 		read_time = []
 		modify_time = []
 		znodes = []
@@ -111,13 +116,18 @@ class ZKPub(HDaemonRepSrv):
 	# create znodes	and store data inside, calculate the times
 #	totalwrite_start=time.time()*1000	
 		for i in range(int(self.znodes_cr)):
-			req_time_start=time.time()*1000
+			write_time_start=time.time()*1000
 			t = zk.create("/Hydra/h-", self.znodes_data.encode('utf8'), ephemeral=True, sequence=True)
-			req_time_end=(time.time()*1000) - req_time_start
-			req_time.append(req_time_end)
+			write_time_end=(time.time()*1000)
+			write_time_diff = write_time_end - write_time_start
+			totalwrite_end = totalwrite_end + write_time_diff
+			dict_write={'write':{}, 'total':{}}
+			dict_write['write'][write_time_end] = write_time_diff
+			write_time.append(dict_write['write'])
 			znodes.append(t)
+		dict_write['total'][time.time()*1000]=totalwrite_end
 	
-			totalwrite_end = totalwrite_end + req_time_end
+		l.info(write_time)
 		l.info(znodes)
 
 	#znodes reading
@@ -125,62 +135,70 @@ class ZKPub(HDaemonRepSrv):
 			read_time_start=time.time()*1000
 			data, stat = zk.get(x, watch=self.trigger)
 #		l.info("data= %s : stat= %s"%(data,stat))
-			read_time_end=(time.time()*1000) - read_time_start
-			totalread_end = totalread_end + read_time_end
-			read_time.append(read_time_end)
-#		l.info(znodes[9])	
-#		l.info(type(znodes[9]))
-#		zk.set(znodes[9], b"I have changed!")
-#		l.info("data changed")		
+			read_time_end=(time.time()*1000)
+			read_time_diff = read_time_end - read_time_start
+			totalread_end = totalread_end + read_time_diff
+			dict_read={'read':{}, 'total':{}}
+			dict_read['read'][read_time_end] = read_time_diff
+			read_time.append(dict_read['read'])
+		dict_read['total'][time.time()] = totalread_end
 
 	#modify requested znodes
 		for y in range(int(self.znodes_mod)):
 			modify_time_start=time.time()*1000
 			zk.set(znodes[y], b"I have changed!")
-			modify_time_end=(time.time()*1000) - modify_time_start
+			modify_time_end=(time.time()*1000)
+			modify_time_diff = modify_time_end - modify_time_start
 			l.info("successfully modified %s" % znodes[y])
-			modify_time.append(modify_time_end)
+			dict_mod={'modify':{}, 'total':{}}
+			dict_mod['modify'][modify_time_end] = modify_time_diff 
+			modify_time.append(dict_mod['modify'])
 			totalmodify_end = totalmodify_end + modify_time_end
 			mod_znodes.append(znodes[y])
+		dict_mod['total'][time.time()] = totalmodify_end
 		l.info("modified znodes : %s"%mod_znodes)
 #	time.sleep(20)
 
-		self.run_data['stats']['thread-%s'%(j+1)] = {}
 
-		self.run_data['stats']['thread-%s'%(j+1)]['Connection_time'] = conn_time_end
+		self.run_data['stats']['Connection_time%s'%(j+1)] = dict_conn
 
-		self.run_data['stats']['thread-%s'%(j+1)]['requested_znodes'] = int(self.znodes_cr)
+		self.run_data['stats']['write_times%s'%(j+1)] = write_time
+		self.run_data['stats']['total_write%s'%(j+1)] = dict_write['total']
 
-		self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'] = numpy.percentile(req_time, 95)
-		self.run_data['stats']['thread-%s'%(j+1)]['90_write_percentile'] = numpy.percentile(req_time, 90)
-		self.run_data['stats']['thread-%s'%(j+1)]['95_read_percentile'] = numpy.percentile(read_time, 95)
-		self.run_data['stats']['thread-%s'%(j+1)]['90_read_percentile'] = numpy.percentile(read_time, 90)
-		self.run_data['stats']['thread-%s'%(j+1)]['95_modify_percentile'] = numpy.percentile(modify_time, 95)
-		self.run_data['stats']['thread-%s'%(j+1)]['90_modify_percentile'] = numpy.percentile(modify_time, 90)
+		self.run_data['stats']['read_times%s'%(j+1)] = read_time
+		self.run_data['stats']['total_modify%s'%(j+1)] = dict_read['total']
 
-		self.run_data['stats']['thread-%s'%(j+1)]['median_write'] = numpy.median(req_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['median_read'] = numpy.median(read_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['median_modify'] = numpy.median(modify_time)
+		self.run_data['stats']['modify_times%s'%(j+1)] = modify_time
+		self.run_data['stats']['total_modify%s'%(j+1)] = dict_mod['total']
+		
+#		self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'] = numpy.percentile(write_time, 95)
+#		self.run_data['stats']['thread-%s'%(j+1)]['90_write_percentile'] = numpy.percentile(write_time, 90)
+#		self.run_data['stats']['thread-%s'%(j+1)]['95_read_percentile'] = numpy.percentile(read_time, 95)
+#		self.run_data['stats']['thread-%s'%(j+1)]['90_read_percentile'] = numpy.percentile(read_time, 90)
+#		self.run_data['stats']['thread-%s'%(j+1)]['95_modify_percentile'] = numpy.percentile(modify_time, 95)
+#		self.run_data['stats']['thread-%s'%(j+1)]['90_modify_percentile'] = numpy.percentile(modify_time, 90)
 
-		self.run_data['stats']['thread-%s'%(j+1)]['mean_write'] = numpy.mean(req_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['mean_read'] = numpy.mean(read_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['mean_modify'] = numpy.mean(modify_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['median_write'] = numpy.median(write_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['median_read'] = numpy.median(read_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['median_modify'] = numpy.median(modify_time)
 
-#	l.info (self.run_data['stats']['thread-%s'%(j+1)]['95_write_percentile'])
-#	l.info (req_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['mean_write'] = numpy.mean(write_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['mean_read'] = numpy.mean(read_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['mean_modify'] = numpy.mean(modify_time)
+
 	
-		self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
-		self.run_data['stats']['thread-%s'%(j+1)]['total_write_latency/ms'] = totalwrite_end
-		self.run_data['stats']['thread-%s'%(j+1)]['total_modify_latency/ms'] = totalmodify_end
-		self.run_data['stats']['thread-%s'%(j+1)]['min_write_latency/ms'] = min(req_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['max_write_latency/ms'] = max(req_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['min_read_latency/ms'] = min(read_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['max_read_latency/ms'] = max(read_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['min_modify_latency/ms'] = min(modify_time)
-		self.run_data['stats']['thread-%s'%(j+1)]['max_modify_latency/ms'] = max(modify_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['total_read_latency/ms'] = totalread_end
+#		self.run_data['stats']['thread-%s'%(j+1)]['total_write_latency/ms'] = totalwrite_end
+#		self.run_data['stats']['thread-%s'%(j+1)]['total_modify_latency/ms'] = totalmodify_end
+#		self.run_data['stats']['thread-%s'%(j+1)]['min_write_latency/ms'] = min(write_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['max_write_latency/ms'] = max(write_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['min_read_latency/ms'] = min(read_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['max_read_latency/ms'] = max(read_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['min_modify_latency/ms'] = min(modify_time)
+#		self.run_data['stats']['thread-%s'%(j+1)]['max_modify_latency/ms'] = max(modify_time)
 
-		self.run_data['stats']['thread-%s'%(j+1)]['write_rate/ms'] = int(self.znodes_cr)/totalwrite_end
-		self.run_data['stats']['thread-%s'%(j+1)]['read_rate/ms'] = int(self.znodes_cr)/totalread_end
+#		self.run_data['stats']['thread-%s'%(j+1)]['write_rate/ms'] = int(self.znodes_cr)/totalwrite_end
+#		self.run_data['stats']['thread-%s'%(j+1)]['read_rate/ms'] = int(self.znodes_cr)/totalread_end
 		time.sleep(5)
 		zk.stop()
 
@@ -236,7 +254,7 @@ def run(argv):
 				x.join()
 #		print "Threads number is %s"% len(run_data['stats'].keys())
 			
-			run_data['stats']['successfull_threads'] = str(len(run_data['stats'].keys()))
+#			run_data['stats']['successfull_threads'] = str(len(run_data['stats'].keys()))
 			l.info(type(znodes_mod))
 			while run_data['watches']<int(znodes_mod):
 				l.info(run_data['watches'])
