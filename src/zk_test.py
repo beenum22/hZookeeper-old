@@ -44,14 +44,6 @@ class ZK(HydraBase):
 		
 	def post_run(self,options):
 		self.options = options
-		self.results = [
-			{
-				"measurement":"hZookeeper_stats",
-				"tags": {},
-				"time": "",
-				"fields":{}
-			}
-		]
 					
 		task_list = self.all_task_ids[self.zk_pub_app_id]
 		print ("Communicating signals to zk_stress_client")
@@ -67,6 +59,7 @@ class ZK(HydraBase):
 			ha_list.append(self.zkpa)
 
 		id = 0
+		app_id = 1
 		for task_id in task_list:
 #			print task_id
 			info = self.apps[self.zk_pub_app_id]['ip_port_map'][task_id]
@@ -86,40 +79,47 @@ class ZK(HydraBase):
 			(status, resp) = self.zkpa.do_req_resp('getstats', tout_60s)
 			print resp
 	
-			for threads_id in resp.keys():
-				if threads_id == 'watches':
-					dict = {threads_id:{}}
-					list=resp[threads_id].strip('[]').split(',')
+			for stats_key in resp.keys():
+				if stats_key == 'watches':
+					dict = {stats_key:{}}
+					list=resp[stats_key].strip('[]').split(',')
 					for d in list:
-						dict[threads_id][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
+						dict[stats_key][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
 					print "********"
 					print "YOOOOO----%s"%dict
-
-
+					for w in dict['watches'].keys():
+						json_body = [{"measurement" : "hZookeeper_stats", "tags":{}, "time":'', "fields" : {}}]
+						json_body[0]["tags"]['app'] = app_id
+						time_db = datetime.datetime.fromtimestamp(float(w)/1000.0).strftime('%Y-%m-%d %H:%M:%S.%f') 						
+						json_body[0]["time"] = time_db
+						json_body[0]["fields"]['watch'] = dict['watches'][w]
+						print json_body
+						self.influxdb(json_body)
+					app_id += 1
 				else:
 					print "************"
-					dict={'thread-%s'%str(int(threads_id[-1])+id):{threads_id[:-1]: {}}}
-					list=resp[threads_id].strip('[]').split(',')
+					dict={'thread-%s'%str(int(stats_key[-1])+id):{stats_key[:-1]: {}}}
+					list=resp[stats_key].strip('[]').split(',')
 					print list			
 					for d in list:
 
 #						list[list.index(d)] = d.strip().strip('{}')	
 						
-						dict['thread-%s'%str(int(threads_id[-1])+id)][threads_id[:-1]][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
+						dict['thread-%s'%str(int(stats_key[-1])+id)][stats_key[:-1]][float(d.strip().strip('{}').split(":")[0])] = float(d.strip().strip('{}').split(":")[1])
 					print dict
 				
 					json_body = [{"measurement" : "hZookeeper_stats", "tags":{}, "time":'', "fields" : {}}]
-					json_body[0]["tags"]['client'] = 'thread-%s'%str(int(threads_id[-1])+id)
+					json_body[0]["tags"]['client'] = 'thread-%s'%str(int(stats_key[-1])+id)
 
-					for t in dict['thread-%s'%str(int(threads_id[-1])+id)].keys():
+					for t in dict['thread-%s'%str(int(stats_key[-1])+id)].keys():
 						
-						for k in dict['thread-%s'%str(int(threads_id[-1])+id)][threads_id[:-1]].keys():
+						for k in dict['thread-%s'%str(int(stats_key[-1])+id)][stats_key[:-1]].keys():
 #							print int(k)
-							print k
+#							print k
 							time_db = datetime.datetime.fromtimestamp(float(k)/1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
 #							print time_db
 							json_body[0]["time"] = time_db
-							json_body[0]["fields"][t] = float(dict['thread-%s'%str(int(threads_id[-1])+id)][threads_id[:-1]][k])
+							json_body[0]["fields"][t] = float(dict['thread-%s'%str(int(stats_key[-1])+id)][stats_key[:-1]][k])
 							print json_body			
 							self.influxdb(json_body)
 			id += self.options.threads_client
@@ -129,13 +129,13 @@ class ZK(HydraBase):
 	def influxdb(self, json_body):
 		client = InfluxDBClient(host='10.10.0.73', port=8086, username='root', password='root', database='hZookeeper')
 		dbs = client.get_list_database()
-		print dbs
+#		print dbs
 		try:
 			t=dbs[1]
 		except:
-			print "NO DB"
+#			print "NO DB"
 			client.create_database('hZookeeper')
-		print type(json_body)
+#		print type(json_body)
 		client.write_points(json_body)
 		print "done writing data"
 #		client.drop_database('hZookeeper')		
@@ -159,11 +159,12 @@ class ZK(HydraBase):
 			threads_per_client = self.options.client_count
 			self.options.threads_client = threads_per_client
 
-		self.create_binary_app(name=self.zk_pub_app_id, app_script='./src/zk_stress.py %s %s %s %s %s'
+		self.create_binary_app(name=self.zk_pub_app_id, app_script='./src/zk_stress.py %s %s %s %s %s %s'
 									  % (self.options.znode_creation_count,
 									  	 self.options.znode_data,
 									  	 self.options.znode_modification_count,
 									  	 self.options.stress_reader,
+										 self.options.zk_server_ip,
 									  	 threads_per_client),
 	                               cpus=0.1, mem=128, ports=[0])
 		if self.options.client_count > max_threads_per_client:
@@ -185,11 +186,12 @@ class RunTest(object):
 
         	parser = OptionParser(description='zookeeper scale test master',
         	                      version="0.1", usage=usage)
-		parser.add_option("--znode_creation_count", dest='znode_creation_count', type='int')
-		parser.add_option("--client_count", dest='client_count', type='int')
-		parser.add_option("--znode_data", dest='znode_data', type='str')
-		parser.add_option("--znode_modification_count", dest='znode_modification_count', type='int')
-		parser.add_option("--stress_reader", dest='stress_reader', type='str')
+		parser.add_option("--znode_creation_count", dest='znode_creation_count', default=1000, type='int')
+		parser.add_option("--client_count", dest='client_count', default=5, type='int')
+		parser.add_option("--znode_data", dest='znode_data', default='Muneeb', type='str')
+		parser.add_option("--znode_modification_count", dest='znode_modification_count', default=10, type='int')
+		parser.add_option("--stress_reader", dest='stress_reader', default='no', type='str')
+		parser.add_option("--zk_server_ip", dest='zk_server_ip', default='10.10.0.73:2181', type='str')
 		(options, args) = parser.parse_args()
 		if ((len(args) != 0)):
 			parser.print_help()

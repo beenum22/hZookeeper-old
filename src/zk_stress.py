@@ -19,12 +19,13 @@ l = util.createlogger('HWPub', logging.INFO)
 
 
 class ZKPub(HDaemonRepSrv):
-	def __init__(self,port,run_data, znodes_cr, znodes_data, znodes_mod, threads):
+	def __init__(self,port,run_data, znodes_cr, znodes_data, znodes_mod, zk_server_ip, threads):
 		self.run_data = run_data
 		self.znodes_cr = znodes_cr
 		self.znodes_data = znodes_data
 		self.znodes_mod = znodes_mod
 		self.threads = int(threads)
+		self.zk_server_ip = zk_server_ip
 		HDaemonRepSrv.__init__(self,port)
 		self.register_fn('sendmsg', self.test_start)
 		self.register_fn('getstats', self.get_stats)
@@ -42,7 +43,7 @@ class ZKPub(HDaemonRepSrv):
 #		return ('ok', self.run_data['stats']['thread-1'])
 		return ('ok', self.run_data['stats'])        	
 	def reader(self):
-		zkr = KazooClient(hosts='10.10.0.73:2181')
+		zkr = KazooClient(hosts=self.zk_server_ip)
 		zkr.start()
 		l.info("Side stress reader running")
 		while True: 
@@ -64,7 +65,7 @@ class ZKPub(HDaemonRepSrv):
 #		l.info(event)
 		if event[0] == 'CHANGED':		
 			l.info("Watched Triggered due to data change in %s"%event[2])
-			zkt = KazooClient(hosts='10.10.0.73:2181')
+			zkt = KazooClient(hosts=self.zk_server_ip)
 			zkt.start()
 			data, stat =  zkt.get(event[2])
 			l.info(data)
@@ -97,7 +98,7 @@ class ZKPub(HDaemonRepSrv):
 #		data=dict()
 
 		conn_time_start = time.time()*1000
-		zk = KazooClient(hosts='10.10.0.73:2181')	# Connection to the zookeeper server
+		zk = KazooClient(hosts=self.zk_server_ip)	# Connection to the zookeeper server
 		zk.start()
 		conn_time_end = time.time()*1000
 		conn_time_diff = conn_time_end - conn_time_start
@@ -220,7 +221,8 @@ def run(argv):
 	znodes_data=argv[2]
 	znodes_mod=argv[3]
 	stress_reader=argv[4]
-	threads=argv[5]
+	zk_server_ip=argv[5]
+	threads=argv[6]
     
 #    l.info(threads)
 	list_threads=[]
@@ -231,7 +233,7 @@ def run(argv):
 		    'watches': 0,
 		    'test_status': 'stopped'}
 	print ("Starting ZKstress  at port [%s]", pub_rep_port)
-	hd = ZKPub(pub_rep_port, run_data, znodes_cr, znodes_data, znodes_mod, threads)
+	hd = ZKPub(pub_rep_port, run_data, znodes_cr, znodes_data, znodes_mod, zk_server_ip, threads)
 	hd.run()
 
 	while True:
