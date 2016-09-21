@@ -1,9 +1,9 @@
-hZookeeper
+#hZookeeper
 
-Background:
+##Background:
 ===========
 
-Mesos/Marathon: 
+###Mesos/Marathon: 
 ---------------
 
 [Apache Mesos](http://mesos.apache.org/) is a centralised fault-tolerant
@@ -33,7 +33,7 @@ A Mesos cluster is made up of four major components:
 -   Frameworks
 
 
-Zookeeper:
+###Zookeeper:
 ----------
 
 Zookeeper is a centralized service for maintaining configuration
@@ -64,7 +64,7 @@ these services which can result in bugs. Even when done correctly, it
 increases the complexity. With zookeeper, we don’t have to worry about
 these services.
 
-Hydra:
+###Hydra:
 ------
 
 Hydra is an open-source scale testing tool that is making use of Mesos
@@ -72,7 +72,7 @@ and Marathon in the backend. The goal of this project is to stress test
 any distributed system with a large number of simulated clients
 communicating with the system.
 
-Hydrospere:
+###Hydrospere:
 -----------
 
 Hydrosphere is a project to setup Mesos/Marathon Cluster along with
@@ -81,10 +81,10 @@ cluster along with [Hydra](https://github.com/lake-lerna/hydra) on
 public clouds such as GCE, AWS, Azure. For now, only GCE is supported.
 
 
-hZookeeper:
+##hZookeeper:
 ===========
 
-Introduction:
+###Introduction:
 -------------
 
 hZookeeper is a project in which we are going to be scale testing
@@ -137,7 +137,7 @@ out[zmq guide](http://zguide.zeromq.org/page:all). It listens for the
 signals sent from HAnalyzer and responds to them accordingly.
 
 
-Architecture:
+###Architecture:
 -------------
 
 hZookeeper’s architecture is shown in the figure below;
