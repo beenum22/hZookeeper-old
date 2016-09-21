@@ -142,33 +142,12 @@ Architecture:
 
 hZookeeper’s architecture is shown in the figure below;
 
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
 
 ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP5//8/AAYOAwIQ9QGzAAAAAElFTkSuQmCC)
 
 ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP5//8/AAYOAwIQ9QGzAAAAAElFTkSuQmCC)
 
 ### \
-\
- {.western}
 
 #### Start\_appserver:
 
@@ -184,9 +163,8 @@ in our case it’s 9800.
 First it creates a Mesos and Marathon client using Hydra’s mmapi. Next
 step is to delete all the preexisting applications running on marathon.
 
-\
 
-#### Launch\_app: {.western}
+#### Launch\_app:
 
 Here we are launching our stress app on the slave nodes using the
 Marathon client we created in our previous step, and we are scaling it
@@ -197,49 +175,46 @@ number exceeds the maximum number of threads per client, we scale the
 marathon app accordingly. Due to some code limitations, it starts some
 extra threads which needs to be reduced as much as possible.
 
-\
 
-#### HAnalyzer: {.western}
+#### HAnalyzer:
 
 HAnalyzer can send different signals to the HDaemon server running on
 the slave nodes and waits for it’s response. We are using to perform
 three operations in our case; to start the test, wait for it to end and
 get the stats back.
 
-#### Rerun: {.western}
+#### Rerun:
 
 Now that our apps are up and running, we need to tell the apps to start
 the stress test. For this HAnalyzer is used which talks to the HDaemon
 server running on the slave node. We have registered functions for three
 types of signals;
 
-##### Teststart: {.western}
+##### Teststart:
 
 This signal is used to notify the stress app running on the slave that
 it’s time to start the stress test.
 
-##### Wait\_for\_testend: {.western}
+##### Wait\_for\_testend:
 
 This signal checks whether the test has ended or not.
 
-##### Getstats: {.western}
+##### Getstats:
 
 When the test ends, we fetch the stats from the app using this signal.
 
-\
 
 These stats are stored in the influxdb and Grafana is used as plotting
 tool which makes use of this influxdb data.
 
-#### HDaemon Server: {.western}
+#### HDaemon Server:
 
 It receives signals from HAnalyzer and take some action according to it.
 In the end, it sends back the response and starts listening again. This
 server is running in parallel with the application unit code.
 
-\
 
-#### Test unit Code: {.western}
+#### Test unit Code:
 
 Here we are performing all the actions as instructed by the signals
 received by HDaemon server.
@@ -271,30 +246,4 @@ functions;
 
 These stats can be fetched when the *getstats* signal is received from
 HAnalyzer
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
-
-\
 
