@@ -1,9 +1,9 @@
 hZookeeper
 
-Background: {.western}
+Background:
 ===========
 
-Mesos/Marathon: {.western}
+Mesos/Marathon: 
 ---------------
 
 [Apache Mesos](http://mesos.apache.org/) is a centralised fault-tolerant
@@ -32,9 +32,8 @@ A Mesos cluster is made up of four major components:
 
 -   Frameworks
 
-\
 
-Zookeeper: {.western}
+Zookeeper:
 ----------
 
 Zookeeper is a centralized service for maintaining configuration
@@ -48,7 +47,6 @@ According CAP theorem, we can’t achieve all three of the availability,
 consistency and partition tolerance. Apache Zookeeper guarantees
 Consistency and Partition tolerance.
 
-\
 
 -   **Consistency:** All nodes in a distributed environment see the same
     data at the same time.
@@ -59,7 +57,6 @@ Consistency and Partition tolerance.
     down, the other nodes works as guaranteed. (Tolerance to network
     partitions/broken communication)
 
-\
 
 Distributed applications make use of the services provided by Zookeeper
 in one way or another. A lot of work goes into the implementation of
@@ -67,7 +64,7 @@ these services which can result in bugs. Even when done correctly, it
 increases the complexity. With zookeeper, we don’t have to worry about
 these services.
 
-Hydra: {.western}
+Hydra:
 ------
 
 Hydra is an open-source scale testing tool that is making use of Mesos
@@ -75,7 +72,7 @@ and Marathon in the backend. The goal of this project is to stress test
 any distributed system with a large number of simulated clients
 communicating with the system.
 
-Hydrospere: {.western}
+Hydrospere:
 -----------
 
 Hydrosphere is a project to setup Mesos/Marathon Cluster along with
@@ -83,31 +80,28 @@ Hydra in automated way. This project helps you setting up mesos-marathon
 cluster along with [Hydra](https://github.com/lake-lerna/hydra) on
 public clouds such as GCE, AWS, Azure. For now, only GCE is supported.
 
-\
 
-hZookeeper: {.western}
+hZookeeper:
 ===========
 
-Introduction: {.western}
+Introduction:
 -------------
 
 hZookeeper is a project in which we are going to be scale testing
 zookeeper service using Hydra.
 
-\
 
-### Hydra: {.western}
+### Hydra:
 
 Some of the main components that we are going to use in our project are;
 
-#### HydraBase: {.western}
+#### HydraBase:
 
 HydraBase is the main library we make use of from Hydra tool. All the
 hydra libraries are accessed through this class.
 
-\
 
-#### mmapi: {.western}
+#### mmapi:
 
 This class provides us with the tools to create mesos and marathon
 clients. In the backend, it makes use of official mesos and marathon
@@ -115,18 +109,16 @@ clients with some extra tweaks to make it more rich and easy to use.
 These clients are used later on to perform different actions such
 getting app info, deleting apps, creating apps etc
 
-\
 
-#### appserver: {.western}
+#### appserver:
 
 This library is used to start and stop a http server serving libraries
 and packages required by the slaves on a certain port. The content to be
 served is stored in ./live directory. This appserver is running in a
 separate thread.
 
-\
 
-#### hAnalyzer: {.western}
+#### hAnalyzer:
 
 This library provides a[zmq](http://zguide.zeromq.org/page:all) REQ
 client which sends signals to the HDaemon Server running on the slave
@@ -135,9 +127,8 @@ app using HAnalyzer. This zmq binding basically provides us with a
 common interface through which our stress application can talk to hydra
 tool.
 
-\
 
-#### hDaemon: {.western}
+#### hDaemon:
 
 This library starts a zmq server which makes use of zmq REQ-REP sockets.
 Zmq REP(reply) server basically acts as a service for a set of clients,
@@ -145,11 +136,8 @@ receiving requests and sending back the replies. For more details, check
 out[zmq guide](http://zguide.zeromq.org/page:all). It listens for the
 signals sent from HAnalyzer and responds to them accordingly.
 
-\
 
-\
-
-Architecture: {.western}
+Architecture:
 -------------
 
 hZookeeper’s architecture is shown in the figure below;
@@ -182,7 +170,7 @@ hZookeeper’s architecture is shown in the figure below;
 \
  {.western}
 
-#### Start\_appserver: {.western}
+#### Start\_appserver:
 
 We need to host all the required packages and libraries on slave nodes.
 First it checks whether the files are already populated. In case it’s
@@ -190,9 +178,8 @@ not, create ‘/live’ folder and add the files that needs to be on the
 slave node. These files are hosted on a port specified in config file,
 in our case it’s 9800.
 
-\
 
-#### Start\_init: {.western}
+#### Start\_init:
 
 First it creates a Mesos and Marathon client using Hydra’s mmapi. Next
 step is to delete all the preexisting applications running on marathon.
