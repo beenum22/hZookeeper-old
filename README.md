@@ -134,13 +134,9 @@ signals sent from HAnalyzer and responds to them accordingly.
 
 hZookeeper’s architecture is shown in the figure below;
 
+![hZookeeper Slave Components](./images/slaves_part.png)
 
-![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP5//8/AAYOAwIQ9QGzAAAAAElFTkSuQmCC)
-
-![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP5//8/AAYOAwIQ9QGzAAAAAElFTkSuQmCC)
-
-### \
-
+![hZookeeper Slave Components](./images/master_part.png)
 #### Start\_appserver:
 
 We need to host all the required packages and libraries on slave nodes.
