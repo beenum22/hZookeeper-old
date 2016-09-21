@@ -44,8 +44,12 @@ class ZK(HydraBase):
 		
 	def post_run(self,options):
 		self.options = options
-					
+							
 		task_list = self.all_task_ids[self.zk_pub_app_id]
+		print task_list
+		print self.zk_pub_app_id
+		print self.apps[self.zk_pub_app_id]['ip_port_map'].values()[0][0]
+		print self.apps[self.zk_pub_app_id]['ip_port_map']
 		print ("Communicating signals to zk_stress_client")
 
 		for task_id in task_list:
