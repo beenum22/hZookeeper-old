@@ -133,9 +133,7 @@ signals sent from HAnalyzer and responds to them accordingly.
 ###Architecture:
 
 hZookeeper’s architecture is shown in the figure below;
-
 ![hZookeeper Slave Components](./images/slaves_part.png)
-
 ![hZookeeper Slave Components](./images/master_part.png)
 #### Start\_appserver:
 
