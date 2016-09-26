@@ -129,13 +129,17 @@ receiving requests and sending back the replies. For more details, check
 out[zmq guide](http://zguide.zeromq.org/page:all). It listens for the
 signals sent from HAnalyzer and responds to them accordingly.
 
+###Scenarios:
+We are performing two types of test cases here so far.
 
-###Architecture:
+####Case-1:
+In the first case, we are running different zookeeper operations and observing their affects on eachother.
+####Architecture:
 
 hZookeeper’s architecture is shown in the figure below;
 ![hZookeeper Slave Components](./images/slaves_part.png)
 ![hZookeeper Slave Components](./images/master_part.png)
-#### Start\_appserver:
+##### Start\_appserver:
 
 We need to host all the required packages and libraries on slave nodes.
 First it checks whether the files are already populated. In case it’s
@@ -144,13 +148,13 @@ slave node. These files are hosted on a port specified in config file,
 in our case it’s 9800.
 
 
-#### Start\_init:
+##### Start\_init:
 
 First it creates a Mesos and Marathon client using Hydra’s mmapi. Next
 step is to delete all the preexisting applications running on marathon.
 
 
-#### Launch\_app:
+##### Launch\_app:
 
 Here we are launching our stress app on the slave nodes using the
 Marathon client we created in our previous step, and we are scaling it
@@ -162,30 +166,30 @@ marathon app accordingly. Due to some code limitations, it starts some
 extra threads which needs to be reduced as much as possible.
 
 
-#### HAnalyzer:
+##### HAnalyzer:
 
 HAnalyzer can send different signals to the HDaemon server running on
 the slave nodes and waits for it’s response. We are using to perform
 three operations in our case; to start the test, wait for it to end and
 get the stats back.
 
-#### Rerun:
+##### Rerun:
 
 Now that our apps are up and running, we need to tell the apps to start
 the stress test. For this HAnalyzer is used which talks to the HDaemon
 server running on the slave node. We have registered functions for three
 types of signals;
 
-##### Teststart:
+###### Teststart:
 
 This signal is used to notify the stress app running on the slave that
 it’s time to start the stress test.
 
-##### Wait\_for\_testend:
+###### Wait\_for\_testend:
 
 This signal checks whether the test has ended or not.
 
-##### Getstats:
+###### Getstats:
 
 When the test ends, we fetch the stats from the app using this signal.
 
@@ -193,14 +197,14 @@ When the test ends, we fetch the stats from the app using this signal.
 These stats are stored in the influxdb and Grafana is used as plotting
 tool which makes use of this influxdb data.
 
-#### HDaemon Server:
+##### HDaemon Server:
 
 It receives signals from HAnalyzer and take some action according to it.
 In the end, it sends back the response and starts listening again. This
 server is running in parallel with the application unit code.
 
 
-#### Test unit Code:
+##### Test unit Code:
 
 Here we are performing all the actions as instructed by the signals
 received by HDaemon server.
@@ -233,3 +237,9 @@ functions;
 These stats can be fetched when the *getstats* signal is received from
 HAnalyzer
 
+####Case-2:
+In this case, we are running two separate apps, one for the test and other for the stress. We either launch reader app or writer app for test which constantly sends read requests towards zookeeper. Stress app sends write requests towards the zookeeper which are increasing constantly with 5 write threads after every 2 seconds. 
+
+![hZookeeper Case-2](./images/case_2.png)
+
+After the desired amount of stress threads have been launched, test client is stopped and it's stats are fetched. These stats are stored in influxdb which can be visualized on Grafana later.
