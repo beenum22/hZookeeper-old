@@ -129,6 +129,11 @@ receiving requests and sending back the replies. For more details, check
 out[zmq guide](http://zguide.zeromq.org/page:all). It listens for the
 signals sent from HAnalyzer and responds to them accordingly.
 
+###Example:
+Example test is shown in the figure below;
+![hZookeeper Slave Components](./images/slaves_part.png)
+![hZookeeper Slave Components](./images/master_part.png)
+
 ###Scenarios:
 We are performing two types of test cases here so far.
 
@@ -136,9 +141,6 @@ We are performing two types of test cases here so far.
 In the first case, we are running different zookeeper operations and observing their affects on eachother.
 ####Architecture:
 
-hZookeeper’s architecture is shown in the figure below;
-![hZookeeper Slave Components](./images/slaves_part.png)
-![hZookeeper Slave Components](./images/master_part.png)
 ##### Start\_appserver:
 
 We need to host all the required packages and libraries on slave nodes.
