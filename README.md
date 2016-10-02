@@ -177,7 +177,7 @@ In the end, it sends back the response and starts listening again. This
 server is running in parallel with the application unit code.
 
 ###Scenarios:
-We are performing two types of test cases here so far.
+We are performing three types of test cases here so far.
 
 ####Case-1:
 In the first case, we are running different zookeeper operations and observing their affects on eachother.
@@ -234,4 +234,23 @@ The high level view of this case is given below;
 ![hZookeeper Case-3](./images/case_3.png)
 
 ###Installation Guide:
+
+- First deploy a mesos cluster with Hydra installed by following the [Hydrosphere][https://github.com/lake-lerna/HydroSphere] project.
+
+- Clone the hZookeeper repo;
+git clone https://github.com/beenum22/hZookeeper
+
+- Edit the hydra.ini according to your environment
+
+- Install the required packages and virtual environment
+./install_hydra.sh
+
+- Deploy influxdb and grafana docker containers
+docker run -d --name=grafana -p 3000:3000 grafana/grafana
+docker run -p 8083:8083 -p 8086:8086 -v $PWD:/var/lib/influxdb influxdb
+
+- Run the desired scenarios, for example;
+./run_case3.sh
+
+- To visualize the data in case 3, you need to setup datasource in Grafana dashboard.
 

@@ -230,7 +230,7 @@ class ZK(HydraBase):
 		print "Launching reader app"
 		print self.options.zk_server_ip
 		threads_per_client = 5
-		self.create_binary_app(name=self.zk_client_app_id, app_script='./src/zk_client.py %s'
+		self.create_binary_app(name=self.zk_client_app_id, app_script='./src/case_1/zk_client.py %s'
 									% (self.options.zk_server_ip),	
 					cpus=0.1, mem=128, ports=[0])
 	
@@ -243,7 +243,7 @@ class ZK(HydraBase):
 		self.options = options
 #		max_threads_per_client = 5
 #		print type(self.options)
-		self.create_binary_app(name=self.zk_stress_app_id, app_script='./src/zk_stress_write.py  %s'
+		self.create_binary_app(name=self.zk_stress_app_id, app_script='./src/case_1/zk_stress_write.py  %s'
 										 % self.options.zk_server_ip,
 	                               cpus=0.1, mem=128, ports=[0])
 		print "Stress app started succesffully"
