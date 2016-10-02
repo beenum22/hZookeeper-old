@@ -204,16 +204,17 @@ class ZK(HydraBase):
 #		time.sleep(20)
 class RunTest(object):
 	def __init__(self, argv):
-        	usage = ('python %prog --zk_server_ip=<ip:port> --test_type=<reader>')
+        	usage = ('python %prog --zk_server_ip=<ip:port> --test_type=<reader>' 
+        				'--stress_type=<reader> --stress_clients=1 --threads_per_client=5 --run_time=120')
 
         	parser = OptionParser(description='zookeeper scale test master',
         	                      version="0.1", usage=usage)
-		parser.add_option("--zk_server_ip","-z", dest='zk_server_ip', help="Zookeeper Cluster ip/ips", default='10.10.4.244:2181', type='str')
-		parser.add_option("--test_type", "-t", dest='test_type', help="Test type, Read/Write" ,default='startreader', type='str')
-		parser.add_option("--stress_type", "-s", dest='stress_type', help="Stress type, Read/Write", default='startreader', type='str')
-		parser.add_option("--stress_clients", "-c",dest='stress_clients', help="Number of stress clients", default=1, type='int')
-		parser.add_option("--threads_per_client", "-p", dest='threads_per_client', help="Threads per stress client", default=5, type='int')
-		parser.add_option("--run_time", "-r", dest='run_time', default=120, help="Test duration", type='int')
+		parser.add_option("--zk_server_ip","-z", dest='zk_server_ip', help="Zookeeper Cluster ip/ips | default=10.10.4.244:2181", default='10.10.4.244:2181', type='str')
+		parser.add_option("--test_type", "-t", dest='test_type', help="Test type, startreader/startwriter | default=startreader" ,default='startreader', type='str')
+		parser.add_option("--stress_type", "-s", dest='stress_type', help="Stress type, startreader/startwriter | default=startreader", default='startreader', type='str')
+		parser.add_option("--stress_clients", "-c",dest='stress_clients', help="Number of stress clients | default=1", default=1, type='int')
+		parser.add_option("--threads_per_client", "-p", dest='threads_per_client', help="Threads per stress client (Number should be multiple of 5) | default=5", default=5, type='int')
+		parser.add_option("--run_time", "-r", dest='run_time', default=120, help="Test duration in seconds | default=120", type='int')
 #		parser.add_option("--stress_reader", dest='stress_reader', default='no', type='str')
 		(options, args) = parser.parse_args()
 		if ((len(args) != 0)):

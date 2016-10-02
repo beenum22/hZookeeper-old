@@ -84,7 +84,7 @@ hZookeeper is a project in which we are going to be scale testing
 zookeeper service using Hydra.
 
 
-### Hydra:
+### Hydra Architecture:
 
 Some of the main components that we are going to use in our project are;
 
@@ -134,13 +134,6 @@ Example test is shown in the figure below;
 ![hZookeeper Slave Components](./images/slaves_part.png)
 ![hZookeeper Slave Components](./images/master_part.png)
 
-###Scenarios:
-We are performing two types of test cases here so far.
-
-####Case-1:
-In the first case, we are running different zookeeper operations and observing their affects on eachother.
-####Architecture:
-
 ##### Start\_appserver:
 
 We need to host all the required packages and libraries on slave nodes.
@@ -160,18 +153,13 @@ step is to delete all the preexisting applications running on marathon.
 
 Here we are launching our stress app on the slave nodes using the
 Marathon client we created in our previous step, and we are scaling it
-if necessary. In hZookeeper, we are running number of clients specified
-by the user in different threads. We have fixed the maximum number of
-threads per client to a certain number and when the user input clients
-number exceeds the maximum number of threads per client, we scale the
-marathon app accordingly. Due to some code limitations, it starts some
-extra threads which needs to be reduced as much as possible.
+if necessary. 
 
 
 ##### HAnalyzer:
 
 HAnalyzer can send different signals to the HDaemon server running on
-the slave nodes and waits for it’s response. We are using to perform
+the slave nodes and waits for it’s response. In this example, we are using to perform
 three operations in our case; to start the test, wait for it to end and
 get the stats back.
 
@@ -182,34 +170,24 @@ the stress test. For this HAnalyzer is used which talks to the HDaemon
 server running on the slave node. We have registered functions for three
 types of signals;
 
-###### Teststart:
-
-This signal is used to notify the stress app running on the slave that
-it’s time to start the stress test.
-
-###### Wait\_for\_testend:
-
-This signal checks whether the test has ended or not.
-
-###### Getstats:
-
-When the test ends, we fetch the stats from the app using this signal.
-
-
-These stats are stored in the influxdb and Grafana is used as plotting
-tool which makes use of this influxdb data.
-
 ##### HDaemon Server:
 
 It receives signals from HAnalyzer and take some action according to it.
 In the end, it sends back the response and starts listening again. This
 server is running in parallel with the application unit code.
 
+###Scenarios:
+We are performing two types of test cases here so far.
 
-##### Test unit Code:
+####Case-1:
+In the first case, we are running different zookeeper operations and observing their affects on eachother.
 
-Here we are performing all the actions as instructed by the signals
-received by HDaemon server.
+We are running number of clients specified
+by the user in different threads. We have fixed the maximum number of
+threads per client to a certain number and when the user input clients
+number exceeds the maximum number of threads per client, we scale the
+marathon app accordingly. Due to some code limitations, it starts some
+extra threads which needs to be reduced as much as possible.
 
 This code can then appropriately respond to calls/events as we define in
 the HDaemon server definition, and run the actual stress request to a
@@ -237,11 +215,23 @@ functions;
 -   Store all the stats in run\_data dictionary
 
 These stats can be fetched when the *getstats* signal is received from
-HAnalyzer
+HAnalyzer. The high level view is shown below;
+
+![hZookeeper Case-1](./images/case_1.png)
 
 ####Case-2:
-In this case, we are running two separate apps, one for the test and other for the stress. We either launch reader app or writer app for test which constantly sends read requests towards zookeeper. Stress app sends write requests towards the zookeeper which are increasing constantly with 5 write threads after every 2 seconds. 
+In this case, we are running two separate apps, one for the test and other for the stress. We start both the apps and start increasing the stress by increasing the number of threads by '5' after every 2 seconds. The number of stress clients is under user's control. We either launch reader app or writer app for test which constantly sends read requests towards zookeeper. The high level view of this case is given below;
 
 ![hZookeeper Case-2](./images/case_2.png)
 
 After the desired amount of stress threads have been launched, test client is stopped and it's stats are fetched. These stats are stored in influxdb which can be visualized on Grafana later.
+In this case, we can visualize how different stress influences the latencies of read/write requests.
+
+####Case-3:
+In this case, first we run the desired number of stress clients before starting our test client. In this case, we are calculating mean, median and 95th percentile of read/write requests ran for a desired duration. 
+The high level view of this case is given below;
+
+![hZookeeper Case-3](./images/case_3.png)
+
+###Installation Guide:
+

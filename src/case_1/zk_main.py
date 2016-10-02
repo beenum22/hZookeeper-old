@@ -255,7 +255,8 @@ class ZK(HydraBase):
 #		time.sleep(20)
 class RunTest(object):
 	def __init__(self, argv):
-        	usage = ('python %prog --zk_server_ip=<ZK ip>')
+        	usage = ('python %prog --zk_server_ip=<ip:port> --test_type=startreader'
+        				'--stress_type=startreader --stress_clients=1 --threads_per_client=5')
 
         	parser = OptionParser(description='zookeeper scale test master',
         	                      version="0.1", usage=usage)
