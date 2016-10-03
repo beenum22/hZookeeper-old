@@ -237,23 +237,29 @@ The high level view of this case is given below;
 
 - First deploy a mesos cluster with Hydra installed by following the [Hydrosphere][https://github.com/lake-lerna/HydroSphere] project.
 
-- Make sure Kazoo libraries are installed on the slave nodes
-pip install kazoo
+- Make sure Kazoo libraries are installed on the slave nodes, run this command on slaves;
+
+`pip install kazoo`
 
 - Clone the hZookeeper repo;
-git clone https://github.com/beenum22/hZookeeper
+
+`git clone https://github.com/beenum22/hZookeeper`
 
 - Edit the hydra.ini according to your environment
 
 - Install the required packages and virtual environment
-./install_hydra.sh
+
+`./install_hydra.sh`
 
 - Deploy influxdb and grafana docker containers
-docker run -d --name=grafana -p 3000:3000 grafana/grafana
-docker run -p 8083:8083 -p 8086:8086 -v $PWD:/var/lib/influxdb influxdb
+
+`docker run -d --name=grafana -p 3000:3000 grafana/grafana`
+
+`docker run -p 8083:8083 -p 8086:8086 -v $PWD:/var/lib/influxdb influxdb`
 
 - Run the desired scenarios, for example;
-./run_case3.sh
+
+`./run_case3.sh`
 
 - To visualize the data in case 3, you need to setup datasource in Grafana dashboard.
 
