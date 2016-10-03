@@ -180,46 +180,6 @@ server is running in parallel with the application unit code.
 We are performing three types of test cases here so far.
 
 ####Case-1:
-In the first case, we are running different zookeeper operations and observing their affects on eachother.
-
-We are running number of clients specified
-by the user in different threads. We have fixed the maximum number of
-threads per client to a certain number and when the user input clients
-number exceeds the maximum number of threads per client, we scale the
-marathon app accordingly. Due to some code limitations, it starts some
-extra threads which needs to be reduced as much as possible.
-
-This code can then appropriately respond to calls/events as we define in
-the HDaemon server definition, and run the actual stress request to a
-distributed software (Zookeeper in this case). The results, say latency,
-response rate etc, can be stored locally to be provided when ever a
-request to gets statistics is presented. In our case, we are keeping all
-the data in a dictionary named “run\_data”. It constantly checks the
-run\_data whether we have received the signal to start the test or not.
-Once True, it starts multiple threads depending upon the number of
-clients user asked for. Each thread will perform the following
-functions;
-
--   Connects to the zookeeper server
-
--   Creates the required number of znodes and calculates the latency
-
--   Reads the data stored in all the znodes and sets a watch on them,
-    and calculates the latency
-
--   Modifies the required number of znodes which triggers the watches.
-
--   Calculate the delay occurred between znode change and zookeeper
-    server notifying us about the change
-
--   Store all the stats in run\_data dictionary
-
-These stats can be fetched when the *getstats* signal is received from
-HAnalyzer. The high level view is shown below;
-
-![hZookeeper Case-1](./images/case_1.png)
-
-####Case-1:
 In this case, we are running two separate apps, one for the test and other for the stress. We start both the apps and start increasing the stress by increasing the number of threads by '5' after every 2 seconds. The number of stress clients is under user's control. We either launch reader app or writer app for test which constantly sends read requests towards zookeeper. The high level view of this case is given below;
 
 ![hZookeeper Case-2](./images/case_2.png)
